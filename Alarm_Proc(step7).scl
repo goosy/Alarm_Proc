@@ -46,7 +46,6 @@ VAR
 END_VAR
 
 VAR_TEMP 
-    ERR : BOOL;   // 错误
     tmp_AH : REAL;
     tmp_WH : REAL;
     tmp_WL : REAL;
@@ -86,10 +85,9 @@ END_IF;
 
 //参数设置错误
 SP_error := (tmp_WH > tmp_AH) OR (tmp_WL > tmp_WH) OR (tmp_AL > tmp_WL);
-ERR := invalid OR SP_error;
 
 //报警触发
-IF ERR THEN
+IF invalid OR SP_error THEN
     AH_flag := FALSE;
     WH_flag := FALSE;
     WL_flag := FALSE;

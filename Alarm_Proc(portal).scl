@@ -1,0 +1,251 @@
+FUNCTION_BLOCK "Alarm_Proc"
+{ S7_Optimized_Access := 'FALSE' }
+VERSION: 0.03
+KNOW_HOW_PROTECT
+AUTHOR:Goosy
+NAME:AlarmPrc
+FAMILY:GooLib
+
+VAR_INPUT
+    enable_AH : Bool := True; // 允许AH报警
+    enable_WH : Bool := True; // 允许WH报警
+    enable_WL : Bool := True; // 允许WL报警
+    enable_AL : Bool := True; // 允许AL报警
+    invalid : Bool := False;  // 数据无效，置位时不进行报警
+    PV : Real ;               // 被监测量
+    AH_limit : Real ;         // 高高报设定值
+    WH_limit : Real ;         // 高报设定值
+    WL_limit : Real ;         // 低报设定值
+    AL_limit : Real ;         // 低低报设定值
+    dead_zone : Real := 0.5;  // 死区 （赋值0.0时无死区）
+    FT_time : Dint := 0;      // 容错时间 (单位毫秒 赋值0时无容错时间)
+    ftTime AT FT_time : Time;
+END_VAR
+
+VAR_OUTPUT 
+    AH_flag : Bool;    // 高高报标志
+    WH_flag : Bool;    // 高报标志
+    WL_flag : Bool;    // 低报标志
+    AL_flag : Bool;    // 低低报标志
+    SP_error : Bool;   // 设置错误
+END_VAR
+
+VAR 
+    trigger_AH { ExternalVisible := 'False'} : Bool;   // 触发高高报
+    trigger_WH { ExternalVisible := 'False'} : Bool;   // 触发高报
+    trigger_WL { ExternalVisible := 'False'} : Bool;   // 触发低报
+    trigger_AL { ExternalVisible := 'False'} : Bool;   // 触发低低报
+    AH_flag_set {
+      InstructionName := 'TON';
+      LibVersion := '1.0';
+      ExternalVisible := 'False'
+    } : TON;
+    AH_flag_reset {
+      InstructionName := 'TOF';
+      LibVersion := '1.0';
+      ExternalVisible := 'False'
+    } : TOF;
+    WH_flag_set {
+      InstructionName := 'TON';
+      LibVersion := '1.0';
+      ExternalVisible := 'False'
+    } : TON;
+    WH_flag_reset {
+      InstructionName := 'TOF';
+      LibVersion := '1.0';
+      ExternalVisible := 'False'
+    } : TOF;
+    WL_flag_set {
+      InstructionName := 'TON';
+      LibVersion := '1.0';
+      ExternalVisible := 'False'
+    } : TON;
+    WL_flag_reset {
+      InstructionName := 'TOF';
+      LibVersion := '1.0';
+      ExternalVisible := 'False'
+    } : TOF;
+    AL_flag_set {
+      InstructionName := 'TON';
+      LibVersion := '1.0';
+      ExternalVisible := 'False'
+    } : TON;
+    AL_flag_reset {
+      InstructionName := 'TOF';
+      LibVersion := '1.0';
+      ExternalVisible := 'False'
+    } : TOF;
+END_VAR
+
+VAR_TEMP 
+    tmp_AH : Real;
+    tmp_WH : Real;
+    tmp_WL : Real;
+    tmp_AL : Real;
+END_VAR
+
+BEGIN
+
+//补全限制值
+IF #enable_AH THEN
+    #tmp_AH := #AH_limit;
+ELSIF #enable_WH THEN
+    #tmp_AH := #WH_limit;
+ELSIF #enable_WL THEN
+    #tmp_AH := #WL_limit;
+ELSIF #enable_AL THEN
+    #tmp_AH := #AL_limit;
+END_IF;
+
+IF #enable_WH THEN
+    #tmp_WH := #WH_limit;
+ELSE
+    #tmp_WH := #AH_limit;
+END_IF;
+
+IF #enable_WL THEN
+    #tmp_WL := #WL_limit;
+ELSE
+    #tmp_WL := #WH_limit;
+END_IF;
+
+IF #enable_AL THEN
+    #tmp_AL := #AL_limit;
+ELSE
+    #tmp_AL := #WL_limit;
+END_IF;
+
+//参数设置错误
+#SP_error := (#tmp_WH > #tmp_AH) OR (#tmp_WL > #tmp_WH) OR (#tmp_AL > #tmp_WL);
+
+//报警触发
+IF #SP_error OR #invalid THEN
+    #AH_flag := 
+    #WH_flag := 
+    #WL_flag := 
+    #AL_flag := FALSE;
+    #trigger_AH :=
+    #trigger_WH :=
+    #trigger_WL :=
+    #trigger_AL := FALSE;
+ELSE
+    //上上限报警
+    IF #enable_AH AND (#PV > #AH_limit) THEN
+        #trigger_AH := True;
+        #trigger_WH := False;
+        #trigger_WL := False;
+        #trigger_AL := False;
+    END_IF;
+    //上上限报警恢复
+    IF NOT #enable_AH OR #PV < (#AH_limit - #dead_zone) THEN
+        #trigger_AH := False;
+    END_IF;
+    
+    //上限报警
+    IF NOT #trigger_AH AND #enable_WH AND (#PV > #WH_limit) THEN
+        #trigger_WH := True;
+        #trigger_WL := False;
+        #trigger_AL := False;
+    END_IF;
+    //上限报警恢复
+    IF NOT #enable_WH OR #PV < (#WH_limit - #dead_zone) THEN
+        #trigger_WH := False;
+    END_IF;
+    
+    //下下限报警
+    IF #enable_AL AND (#PV < #AL_limit) THEN
+        #trigger_AH := False;
+        #trigger_WH := False;
+        #trigger_WL := False;
+        #trigger_AL := True;
+    END_IF;
+    //下下限报警恢复
+    IF NOT #enable_AL OR #PV > (#AL_limit + #dead_zone) THEN
+        #trigger_AL := False;
+    END_IF;
+    
+    //下限报警
+    IF NOT #trigger_AL AND #enable_WL AND (#PV < #WL_limit) THEN
+        #trigger_AH := False;
+        #trigger_WH := False;
+        #trigger_WL := True;
+    END_IF;
+    //下限报警恢复
+    IF NOT #enable_WL OR #PV > (#WL_limit + #dead_zone) THEN
+        #trigger_WL := False;
+    END_IF;
+END_IF;
+
+// 容错时限后输出报警标志
+IF #FT_time = 0 THEN
+    #AH_flag := #trigger_AH;
+    #WH_flag := #trigger_WH;
+    #WL_flag := #trigger_WL;
+    #AL_flag := #trigger_AL;
+ELSE
+    // 延时置位高高报
+    #AH_flag_set(
+        IN := #trigger_AH,
+        PT := #ftTime);
+    IF #AH_flag_set.Q THEN
+        #AH_flag := True;
+    END_IF;
+
+    // 延时复位高高报
+    #AH_flag_reset(
+        IN := #trigger_AH,
+        PT := #ftTime);
+    IF NOT #AH_flag_reset.Q THEN
+        #AH_flag := False;
+    END_IF;
+    
+    // 延时置位高报
+    #WH_flag_set(
+        IN := #trigger_WH,
+        PT := #ftTime);
+    IF #WH_flag_set.Q THEN
+        #WH_flag := True;
+    END_IF;
+
+    // 延时复位高报
+    #WH_flag_reset(
+        IN := #trigger_WH,
+        PT := #ftTime);
+    IF NOT #WH_flag_reset.Q THEN
+        #WH_flag := False;
+    END_IF;
+    
+    // 延时置位低报
+    #WL_flag_set(
+        IN := #trigger_WL,
+        PT := #ftTime);
+    IF #WL_flag_set.Q THEN
+        #WL_flag := True;
+    END_IF;
+
+    // 延时复位低报
+    #WL_flag_reset(
+        IN := #trigger_WL,
+        PT := #ftTime);
+    IF NOT #WL_flag_reset.Q THEN
+        #WL_flag := False;
+    END_IF;
+
+    // 延时置位低低报
+    #AL_flag_set(
+        IN := #trigger_AL,
+        PT := #ftTime);
+    IF #AL_flag_set.Q THEN
+        #AL_flag := True;
+    END_IF;
+    
+    // 延时复位低低报
+    #AL_flag_reset(
+        IN := #trigger_AL,
+        PT := #ftTime);
+    IF NOT #AL_flag_reset.Q THEN
+        #AL_flag := False;
+    END_IF;
+END_IF;
+
+END_FUNCTION_BLOCK
