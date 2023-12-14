@@ -9,7 +9,7 @@ TITLE='模拟量进行限值报警'
   S7_m_c := 'true';
   S7_alarm_ui := '1'
 }
-VERSION:'0.03'
+VERSION:'0.04'
 KNOW_HOW_PROTECT
 AUTHOR:Goosy
 NAME:AlarmPrc
@@ -47,6 +47,18 @@ PV{ // 过程值
   S7_dynamic := 'true';
   S7_archive := 'shortterm'
 } :REAL := 0.0;
+zero{ // 零点
+  S7_shortcut := '零点';
+  S7_m_c := 'true';
+  S7_dynamic := 'true'
+  // S7_archive:= 'shortterm'
+} : REAL := 0.0;
+span{ // 量程
+  S7_shortcut := '量程';
+  S7_m_c := 'true';
+  S7_dynamic := 'true'
+  // S7_archive:= 'shortterm'
+} : REAL := 100.0;
 AH_limit{ // 上上限
     S7_link:='false';
     S7_shortcut := '上上限';

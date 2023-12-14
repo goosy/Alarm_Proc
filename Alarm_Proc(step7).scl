@@ -1,6 +1,6 @@
 FUNCTION_BLOCK "Alarm_Proc"
 TITLE='模拟量进行限值报警'
-VERSION:'0.03'
+VERSION:'0.04'
 KNOW_HOW_PROTECT
 AUTHOR:Goosy
 NAME:AlarmPrc
@@ -13,6 +13,8 @@ VAR_INPUT
     enable_AL {S7_m_c := 'true'} : Bool := TRUE; // 允许AL报警
     invalid {S7_m_c := 'true'} : BOOL := FALSE;  // 数据无效，置位时不进行报警
     PV {S7_m_c := 'true'} : REAL ;               // 被监测量
+    zero {S7_m_c := 'true'} : REAL ;             // 量程低值
+    span {S7_m_c := 'true'} : REAL := 100.0;     // 量程高值
     AH_limit {S7_m_c := 'true'} : REAL ;         // 高高报设定值
     WH_limit {S7_m_c := 'true'} : REAL ;         // 高报设定值
     WL_limit {S7_m_c := 'true'} : REAL ;         // 低报设定值

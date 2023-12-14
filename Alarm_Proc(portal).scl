@@ -1,6 +1,6 @@
 FUNCTION_BLOCK "Alarm_Proc"
 { S7_Optimized_Access := 'FALSE' }
-VERSION: 0.03
+VERSION: 0.04
 KNOW_HOW_PROTECT
 AUTHOR:Goosy
 NAME:AlarmPrc
@@ -13,6 +13,8 @@ VAR_INPUT
     enable_AL : Bool := True; // 允许AL报警
     invalid : Bool := False;  // 数据无效，置位时不进行报警
     PV : Real ;               // 被监测量
+    zero : Real;              // 零点值
+    span : Real := 100.0;     // 量程值
     AH_limit : Real ;         // 高高报设定值
     WH_limit : Real ;         // 高报设定值
     WL_limit : Real ;         // 低报设定值
