@@ -1,6 +1,6 @@
 FUNCTION_BLOCK "Alarm_Proc"
 { S7_Optimized_Access := 'FALSE' }
-VERSION: 0.04
+VERSION: 0.5
 KNOW_HOW_PROTECT
 AUTHOR:Goosy
 NAME:AlarmPrc
@@ -25,11 +25,15 @@ VAR_INPUT
 END_VAR
 
 VAR_OUTPUT 
-    AH_flag : Bool;    // 高高报标志
-    WH_flag : Bool;    // 高报标志
-    WL_flag : Bool;    // 低报标志
-    AL_flag : Bool;    // 低低报标志
-    SP_error : Bool;   // 设置错误
+    AH_flag : Bool;   // 高高报标志
+    WH_flag : Bool;   // 高报标志
+    WL_flag : Bool;   // 低报标志
+    AL_flag : Bool;   // 低低报标志
+    SP_error : Bool;  // 设置错误
+    AH_PV : Real ;    // AH报警时的最后过程值
+    WH_PV : Real ;    // WH报警时的最后过程值
+    WL_PV : Real ;    // WL报警时的最后过程值
+    AL_PV : Real ;    // AL报警时的最后过程值
 END_VAR
 
 VAR 
@@ -38,44 +42,44 @@ VAR
     trigger_WL { ExternalVisible := 'False'} : Bool;   // 触发低报
     trigger_AL { ExternalVisible := 'False'} : Bool;   // 触发低低报
     AH_flag_set {
-      InstructionName := 'TON';
-      LibVersion := '1.0';
-      ExternalVisible := 'False'
+        InstructionName := 'TON';
+        LibVersion := '1.0';
+        ExternalVisible := 'False'
     } : TON;
     AH_flag_reset {
-      InstructionName := 'TOF';
-      LibVersion := '1.0';
-      ExternalVisible := 'False'
+        InstructionName := 'TOF';
+        LibVersion := '1.0';
+        ExternalVisible := 'False'
     } : TOF;
     WH_flag_set {
-      InstructionName := 'TON';
-      LibVersion := '1.0';
-      ExternalVisible := 'False'
+        InstructionName := 'TON';
+        LibVersion := '1.0';
+        ExternalVisible := 'False'
     } : TON;
     WH_flag_reset {
-      InstructionName := 'TOF';
-      LibVersion := '1.0';
-      ExternalVisible := 'False'
+        InstructionName := 'TOF';
+        LibVersion := '1.0';
+        ExternalVisible := 'False'
     } : TOF;
     WL_flag_set {
-      InstructionName := 'TON';
-      LibVersion := '1.0';
-      ExternalVisible := 'False'
+        InstructionName := 'TON';
+        LibVersion := '1.0';
+        ExternalVisible := 'False'
     } : TON;
     WL_flag_reset {
-      InstructionName := 'TOF';
-      LibVersion := '1.0';
-      ExternalVisible := 'False'
+        InstructionName := 'TOF';
+        LibVersion := '1.0';
+        ExternalVisible := 'False'
     } : TOF;
     AL_flag_set {
-      InstructionName := 'TON';
-      LibVersion := '1.0';
-      ExternalVisible := 'False'
+        InstructionName := 'TON';
+        LibVersion := '1.0';
+        ExternalVisible := 'False'
     } : TON;
     AL_flag_reset {
-      InstructionName := 'TOF';
-      LibVersion := '1.0';
-      ExternalVisible := 'False'
+        InstructionName := 'TOF';
+        LibVersion := '1.0';
+        ExternalVisible := 'False'
     } : TOF;
 END_VAR
 
@@ -137,6 +141,8 @@ ELSE
         #trigger_WH := False;
         #trigger_WL := False;
         #trigger_AL := False;
+        // 记录最后的报警值
+        #AH_PV := #PV;
     END_IF;
     //上上限报警恢复
     IF NOT #enable_AH OR #PV < (#AH_limit - #dead_zone) THEN
@@ -148,6 +154,8 @@ ELSE
         #trigger_WH := True;
         #trigger_WL := False;
         #trigger_AL := False;
+        // 记录最后的报警值
+        #WH_PV := #PV;
     END_IF;
     //上限报警恢复
     IF NOT #enable_WH OR #PV < (#WH_limit - #dead_zone) THEN
@@ -160,6 +168,8 @@ ELSE
         #trigger_WH := False;
         #trigger_WL := False;
         #trigger_AL := True;
+        // 记录最后的报警值
+        #AL_PV := #PV;
     END_IF;
     //下下限报警恢复
     IF NOT #enable_AL OR #PV > (#AL_limit + #dead_zone) THEN
@@ -171,6 +181,8 @@ ELSE
         #trigger_AH := False;
         #trigger_WH := False;
         #trigger_WL := True;
+        // 记录最后的报警值
+        #WL_PV := #PV;
     END_IF;
     //下限报警恢复
     IF NOT #enable_WL OR #PV > (#WL_limit + #dead_zone) THEN

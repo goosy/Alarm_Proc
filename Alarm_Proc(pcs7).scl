@@ -9,7 +9,7 @@ TITLE='模拟量进行限值报警'
   S7_m_c := 'true';
   S7_alarm_ui := '1'
 }
-VERSION:'0.04'
+VERSION:'0.5'
 KNOW_HOW_PROTECT
 AUTHOR:Goosy
 NAME:AlarmPrc
@@ -128,6 +128,27 @@ SP_error{
   S7_m_c := 'true';
   S7_dynamic := 'true'
 } :BOOL := 0;
+
+AH_PV{ // AH报警时的最后过程值
+  S7_shortcut := 'AH报警实时值';
+  S7_m_c := 'true';
+  S7_dynamic := 'true'
+} :REAL := 0.0;
+WH_PV{ // WH报警时的最后过程值
+  S7_shortcut := 'WH报警实时值';
+  S7_m_c := 'true';
+  S7_dynamic := 'true'
+} :REAL := 0.0;
+WL_PV{ // WL报警时的最后过程值
+  S7_shortcut := 'WL报警实时值';
+  S7_m_c := 'true';
+  S7_dynamic := 'true'
+} :REAL := 0.0;
+AL_PV{ // AL报警时的最后过程值
+  S7_shortcut := 'AL报警实时值';
+  S7_m_c := 'true';
+  S7_dynamic := 'true'
+} :REAL := 0.0;
 END_VAR
 
 VAR 
@@ -203,6 +224,8 @@ ELSE
         trigger_WH := FALSE;
         trigger_WL := FALSE;
         trigger_AL := FALSE;
+        // 记录最后的报警值
+        AH_PV := PV;
     END_IF;
     //上上限报警恢复
     IF NOT enable_AH OR PV < (AH_limit - dead_zone) THEN
@@ -214,6 +237,8 @@ ELSE
         trigger_WH := TRUE;
         trigger_WL := FALSE;
         trigger_AL := FALSE;
+        // 记录最后的报警值
+        WH_PV := PV;
     END_IF;
     //上限报警恢复
     IF NOT enable_WH OR PV < (WH_limit - dead_zone) THEN
@@ -226,6 +251,8 @@ ELSE
         trigger_WH := FALSE;
         trigger_WL := FALSE;
         trigger_AL := TRUE;
+        // 记录最后的报警值
+        AL_PV := PV;
     END_IF;
     //下下限报警恢复
     IF NOT enable_AL OR PV > (AL_limit + dead_zone) THEN
@@ -237,6 +264,8 @@ ELSE
         trigger_AH := FALSE;
         trigger_WH := FALSE;
         trigger_WL := TRUE;
+        // 记录最后的报警值
+        WL_PV := PV;
     END_IF;
     //下限报警恢复
     IF NOT enable_WL OR PV > (WL_limit + dead_zone) THEN
