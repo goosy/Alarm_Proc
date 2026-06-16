@@ -7,20 +7,22 @@ NAME:AlarmPrc
 FAMILY:GooLib
 
 VAR_INPUT
-    enable_AH : Bool := True; // 允许AH报警
-    enable_WH : Bool := True; // 允许WH报警
-    enable_WL : Bool := True; // 允许WL报警
-    enable_AL : Bool := True; // 允许AL报警
-    invalid : Bool := False;  // 数据无效，置位时不进行报警
-    PV : Real ;               // 被监测量
-    zero : Real;              // 零点值
-    span : Real := 100.0;     // 量程值
-    AH_limit : Real ;         // 高高报设定值
-    WH_limit : Real ;         // 高报设定值
-    WL_limit : Real ;         // 低报设定值
-    AL_limit : Real ;         // 低低报设定值
-    dead_zone : Real := 0.5;  // 死区 （赋值0.0时无死区）
-    FT_time : Dint := 0;      // 容错时间 (单位毫秒 赋值0时无容错时间)
+    enable_AH : Bool := True;     // 允许AH报警
+    enable_WH : Bool := True;     // 允许WH报警
+    enable_WL : Bool := True;     // 允许WL报警
+    enable_AL : Bool := True;     // 允许AL报警
+    invalid : Bool := False;      // 数据无效，置位时不进行报警
+    PV : Real ;                   // 被监测量
+    zero : Real;                  // 零点值
+    span : Real := 100.0;         // 量程值
+    overflow_SP : Real := 0.02;   // 上溢出比例
+    underflow_SP : Real := -0.02; // 下溢出比例
+    AH_limit : Real ;             // 高高报设定值
+    WH_limit : Real ;             // 高报设定值
+    WL_limit : Real ;             // 低报设定值
+    AL_limit : Real ;             // 低低报设定值
+    dead_zone : Real := 0.5;      // 死区 （赋值0.0时无死区）
+    FT_time : Dint := 0;          // 容错时间 (单位毫秒 赋值0时无容错时间)
     ftTime AT FT_time : Time;
 END_VAR
 
@@ -29,6 +31,10 @@ VAR_OUTPUT
     WH_flag : Bool;   // 高报标志
     WL_flag : Bool;   // 低报标志
     AL_flag : Bool;   // 低低报标志
+    no_alarm : Bool ; // 无报警
+    input_ok : Bool;  // 输入正常，即invalid取反
+    overflow : Bool;  // 高溢出
+    underflow : Bool; // 低溢出
     SP_error : Bool;  // 设置错误
     AH_PV : Real ;    // AH报警时的最后过程值
     WH_PV : Real ;    // WH报警时的最后过程值
@@ -36,11 +42,12 @@ VAR_OUTPUT
     AL_PV : Real ;    // AL报警时的最后过程值
 END_VAR
 
-VAR 
-    trigger_AH { ExternalVisible := 'False'} : Bool;   // 触发高高报
-    trigger_WH { ExternalVisible := 'False'} : Bool;   // 触发高报
-    trigger_WL { ExternalVisible := 'False'} : Bool;   // 触发低报
-    trigger_AL { ExternalVisible := 'False'} : Bool;   // 触发低低报
+VAR
+    trigger_AH { ExternalVisible := 'False'} : Bool;       // 触发高高报
+    trigger_WH { ExternalVisible := 'False'} : Bool;       // 触发高报
+    trigger_WL { ExternalVisible := 'False'} : Bool;       // 触发低报
+    trigger_AL { ExternalVisible := 'False'} : Bool;       // 触发低低报
+    alarm_suppressed { ExternalVisible := 'False'} : Bool; // 报警抑制
     AH_flag_set {
         InstructionName := 'TON';
         LibVersion := '1.0';
@@ -88,9 +95,16 @@ VAR_TEMP
     tmp_WH : Real;
     tmp_WL : Real;
     tmp_AL : Real;
+    tmp_range : Real;
 END_VAR
 
 BEGIN
+
+#input_ok := NOT #invalid;
+#tmp_range := #span - #zero;
+#overflow := #PV - #span > #tmp_range * #overflow_SP;
+#underflow := #PV - #zero < #tmp_range * #underflow_SP;
+#no_alarm := NOT (#enable_AH OR #enable_WH OR #enable_WL OR #enable_AL);
 
 //补全限制值
 IF #enable_AH THEN
@@ -106,26 +120,29 @@ END_IF;
 IF #enable_WH THEN
     #tmp_WH := #WH_limit;
 ELSE
-    #tmp_WH := #AH_limit;
+    #tmp_WH := #tmp_AH;
 END_IF;
 
 IF #enable_WL THEN
     #tmp_WL := #WL_limit;
 ELSE
-    #tmp_WL := #WH_limit;
+    #tmp_WL := #tmp_WH;
 END_IF;
 
 IF #enable_AL THEN
     #tmp_AL := #AL_limit;
 ELSE
-    #tmp_AL := #WL_limit;
+    #tmp_AL := #tmp_WL;
 END_IF;
 
 //参数设置错误
-#SP_error := (#tmp_WH > #tmp_AH) OR (#tmp_WL > #tmp_WH) OR (#tmp_AL > #tmp_WL);
+IF #no_alarm THEN
+    #SP_error := FALSE;
+ELSE
+    #SP_error := (#tmp_WH > #tmp_AH) OR (#tmp_WL > #tmp_WH) OR (#tmp_AL > #tmp_WL);
+END_IF;
 
-//报警触发
-IF #SP_error OR #invalid THEN
+IF #no_alarm OR #SP_error OR #invalid THEN  //报警触发
     #AH_flag := 
     #WH_flag := 
     #WL_flag := 
@@ -134,7 +151,14 @@ IF #SP_error OR #invalid THEN
     #trigger_WH :=
     #trigger_WL :=
     #trigger_AL := FALSE;
-ELSE
+    IF #alarm_suppressed  THEN
+        RETURN;
+    END_IF;
+    #alarm_suppressed  := TRUE;
+
+ELSE  //报警触发
+    #alarm_suppressed  := FALSE;
+
     //上上限报警
     IF #enable_AH AND (#PV > #AH_limit) THEN
         #trigger_AH := True;
@@ -148,7 +172,7 @@ ELSE
     IF NOT #enable_AH OR #PV < (#AH_limit - #dead_zone) THEN
         #trigger_AH := False;
     END_IF;
-    
+
     //上限报警
     IF NOT #trigger_AH AND #enable_WH AND (#PV > #WH_limit) THEN
         #trigger_WH := True;
@@ -161,7 +185,7 @@ ELSE
     IF NOT #enable_WH OR #PV < (#WH_limit - #dead_zone) THEN
         #trigger_WH := False;
     END_IF;
-    
+
     //下下限报警
     IF #enable_AL AND (#PV < #AL_limit) THEN
         #trigger_AH := False;
@@ -175,7 +199,7 @@ ELSE
     IF NOT #enable_AL OR #PV > (#AL_limit + #dead_zone) THEN
         #trigger_AL := False;
     END_IF;
-    
+
     //下限报警
     IF NOT #trigger_AL AND #enable_WL AND (#PV < #WL_limit) THEN
         #trigger_AH := False;
@@ -212,7 +236,7 @@ ELSE
     IF NOT #AH_flag_reset.Q THEN
         #AH_flag := False;
     END_IF;
-    
+
     // 延时置位高报
     #WH_flag_set(
         IN := #trigger_WH,
@@ -228,7 +252,7 @@ ELSE
     IF NOT #WH_flag_reset.Q THEN
         #WH_flag := False;
     END_IF;
-    
+
     // 延时置位低报
     #WL_flag_set(
         IN := #trigger_WL,
@@ -252,7 +276,7 @@ ELSE
     IF #AL_flag_set.Q THEN
         #AL_flag := True;
     END_IF;
-    
+
     // 延时复位低低报
     #AL_flag_reset(
         IN := #trigger_AL,

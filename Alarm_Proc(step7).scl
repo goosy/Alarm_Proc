@@ -1,26 +1,28 @@
 FUNCTION_BLOCK "Alarm_Proc"
 TITLE='模拟量进行限值报警'
-VERSION:'0.5'
+VERSION:'0.6'
 KNOW_HOW_PROTECT
 AUTHOR:Goosy
 NAME:AlarmPrc
 FAMILY:GooLib
 
 VAR_INPUT
-    enable_AH {S7_m_c := 'true'} : Bool := TRUE; // 允许AH报警
-    enable_WH {S7_m_c := 'true'} : Bool := TRUE; // 允许WH报警
-    enable_WL {S7_m_c := 'true'} : Bool := TRUE; // 允许WL报警
-    enable_AL {S7_m_c := 'true'} : Bool := TRUE; // 允许AL报警
-    invalid {S7_m_c := 'true'} : BOOL := FALSE;  // 数据无效，置位时不进行报警
-    PV {S7_m_c := 'true'} : REAL ;               // 被监测量
-    zero {S7_m_c := 'true'} : REAL ;             // 量程低值
-    span {S7_m_c := 'true'} : REAL := 100.0;     // 量程高值
-    AH_limit {S7_m_c := 'true'} : REAL ;         // 高高报设定值
-    WH_limit {S7_m_c := 'true'} : REAL ;         // 高报设定值
-    WL_limit {S7_m_c := 'true'} : REAL ;         // 低报设定值
-    AL_limit {S7_m_c := 'true'} : REAL ;         // 低低报设定值
-    dead_zone {S7_m_c := 'true'} : REAL := 0.5;  // 死区 （赋值0.0时无死区）
-    FT_time {S7_m_c := 'true'} : DINT := 0;      // 容错时间 (单位毫秒 赋值0时无容错时间)
+    enable_AH {S7_m_c := 'true'} : Bool := TRUE;     // 允许AH报警
+    enable_WH {S7_m_c := 'true'} : Bool := TRUE;     // 允许WH报警
+    enable_WL {S7_m_c := 'true'} : Bool := TRUE;     // 允许WL报警
+    enable_AL {S7_m_c := 'true'} : Bool := TRUE;     // 允许AL报警
+    invalid {S7_m_c := 'true'} : BOOL := FALSE;      // 数据无效，置位时不进行报警
+    PV {S7_m_c := 'true'} : REAL ;                   // 被监测量
+    zero {S7_m_c := 'true'} : REAL ;                 // 量程低值
+    span {S7_m_c := 'true'} : REAL := 100.0;         // 量程高值
+    overflow_SP {S7_m_c := 'true'} : REAL := 0.02;   // 上溢出比例
+    underflow_SP {S7_m_c := 'true'} : REAL := -0.02; // 下溢出比例
+    AH_limit {S7_m_c := 'true'} : REAL ;             // 高高报设定值
+    WH_limit {S7_m_c := 'true'} : REAL ;             // 高报设定值
+    WL_limit {S7_m_c := 'true'} : REAL ;             // 低报设定值
+    AL_limit {S7_m_c := 'true'} : REAL ;             // 低低报设定值
+    dead_zone {S7_m_c := 'true'} : REAL := 0.5;      // 死区 （赋值0.0时无死区）
+    FT_time {S7_m_c := 'true'} : DINT := 0;          // 容错时间 (单位毫秒 赋值0时无容错时间)
     ftTime AT FT_time : TIME;
 END_VAR
 
@@ -29,6 +31,10 @@ VAR_OUTPUT
     WH_flag {S7_m_c := 'true'} : BOOL;   // 高报标志
     WL_flag {S7_m_c := 'true'} : BOOL;   // 低报标志
     AL_flag {S7_m_c := 'true'} : BOOL;   // 低低报标志
+    no_alarm {S7_m_c := 'true'} : BOOL ; // 无报警
+    input_ok {S7_m_c := 'true'} : BOOL;  // 输入正常，即invalid取反
+    overflow {S7_m_c := 'true'} : BOOL;  // 高溢出
+    underflow {S7_m_c := 'true'} : BOOL; // 低溢出
     SP_error {S7_m_c := 'true'} : BOOL;  // 设置错误
     AH_PV {S7_m_c := 'true'} : REAL ;    // AH报警时的最后过程值
     WH_PV {S7_m_c := 'true'} : REAL ;    // WH报警时的最后过程值
@@ -37,10 +43,11 @@ VAR_OUTPUT
 END_VAR
 
 VAR 
-    trigger_AH : BOOL;   // 触发高高报
-    trigger_WH : BOOL;   // 触发高报
-    trigger_WL : BOOL;   // 触发低报
-    trigger_AL : BOOL;   // 触发低低报
+    trigger_AH : BOOL;         // 触发高高报
+    trigger_WH : BOOL;         // 触发高报
+    trigger_WL : BOOL;         // 触发低报
+    trigger_AL : BOOL;         // 触发低低报
+    alarm_suppressed  : BOOL;  // 报警抑制
     AH_flag_set : TON;
     AH_flag_reset : TOF;
     WH_flag_set : TON;
@@ -56,9 +63,16 @@ VAR_TEMP
     tmp_WH : REAL;
     tmp_WL : REAL;
     tmp_AL : REAL;
+    tmp_range : REAL;
 END_VAR
 
 BEGIN
+
+input_ok := NOT invalid;
+tmp_range := span - zero;
+overflow := PV - span > tmp_range * overflow_SP;
+underflow := PV - zero < tmp_range * underflow_SP;
+no_alarm := NOT (enable_AH OR enable_WH OR enable_WL OR enable_AL);
 
 //补全限制值
 IF enable_AH THEN
@@ -74,26 +88,29 @@ END_IF;
 IF enable_WH THEN
     tmp_WH := WH_limit;
 ELSE
-    tmp_WH := AH_limit;
+    tmp_WH := tmp_AH;
 END_IF;
 
 IF enable_WL THEN
     tmp_WL := WL_limit;
 ELSE
-    tmp_WL := WH_limit;
+    tmp_WL := tmp_WH;
 END_IF;
 
 IF enable_AL THEN
     tmp_AL := AL_limit;
 ELSE
-    tmp_AL := WL_limit;
+    tmp_AL := tmp_WL;
 END_IF;
 
 //参数设置错误
-SP_error := (tmp_WH > tmp_AH) OR (tmp_WL > tmp_WH) OR (tmp_AL > tmp_WL);
+IF no_alarm THEN
+    SP_error := FALSE;
+ELSE
+    SP_error := (tmp_WH > tmp_AH) OR (tmp_WL > tmp_WH) OR (tmp_AL > tmp_WL);
+END_IF;
 
-//报警触发
-IF invalid OR SP_error THEN
+IF no_alarm OR invalid OR SP_error THEN //取消报警
     AH_flag := FALSE;
     WH_flag := FALSE;
     WL_flag := FALSE;
@@ -102,7 +119,14 @@ IF invalid OR SP_error THEN
     trigger_WH := FALSE;
     trigger_WL := FALSE;
     trigger_AL := FALSE;
-ELSE
+    IF alarm_suppressed  THEN
+        RETURN;
+    END_IF;
+    alarm_suppressed  := TRUE;
+
+ELSE  //报警触发
+    alarm_suppressed  := FALSE;
+
     //上上限报警
     IF enable_AH AND (PV > AH_limit) THEN
         trigger_AH := TRUE;
@@ -116,7 +140,7 @@ ELSE
     IF NOT enable_AH OR PV < (AH_limit - dead_zone) THEN
         trigger_AH := FALSE;
     END_IF;
-    
+
     //上限报警
     IF NOT trigger_AH AND enable_WH AND (PV > WH_limit) THEN
         trigger_WH := TRUE;
@@ -129,7 +153,7 @@ ELSE
     IF NOT enable_WH OR PV < (WH_limit - dead_zone) THEN
         trigger_WH := FALSE;
     END_IF;
-    
+
     //下下限报警
     IF enable_AL AND (PV < AL_limit) THEN
         trigger_AH := FALSE;
@@ -143,7 +167,7 @@ ELSE
     IF NOT enable_AL OR PV > (AL_limit + dead_zone) THEN
         trigger_AL := FALSE;
     END_IF;
-    
+
     //下限报警
     IF NOT trigger_AL AND enable_WL AND (PV < WL_limit) THEN
         trigger_AH := FALSE;
@@ -180,7 +204,7 @@ ELSE
     IF NOT AH_flag_reset.Q THEN
         AH_flag := FALSE;
     END_IF;
-    
+
     // 延时置位高报
     WH_flag_set(
         IN := trigger_WH,
@@ -196,7 +220,7 @@ ELSE
     IF NOT WH_flag_reset.Q THEN
         WH_flag := FALSE;
     END_IF;
-    
+
     // 延时置位低报
     WL_flag_set(
         IN := trigger_WL,
@@ -220,7 +244,7 @@ ELSE
     IF AL_flag_set.Q THEN
         AL_flag := TRUE;
     END_IF;
-    
+
     // 延时复位低低报
     AL_flag_reset(
         IN := trigger_AL,
@@ -228,7 +252,7 @@ ELSE
     IF NOT AL_flag_reset.Q THEN
         AL_flag := FALSE;
     END_IF;
-    
+
 END_IF;
 
 END_FUNCTION_BLOCK
