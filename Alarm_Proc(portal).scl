@@ -1,100 +1,100 @@
 FUNCTION_BLOCK "Alarm_Proc"
 { S7_Optimized_Access := 'FALSE' }
-VERSION: 0.5
+VERSION: 1.0
 KNOW_HOW_PROTECT
 AUTHOR:Goosy
 NAME:AlarmPrc
 FAMILY:GooLib
 
 VAR_INPUT
-    enable_AH : Bool := True;     // 允许AH报警
-    enable_WH : Bool := True;     // 允许WH报警
-    enable_WL : Bool := True;     // 允许WL报警
-    enable_AL : Bool := True;     // 允许AL报警
-    invalid : Bool := False;      // 数据无效，置位时不进行报警
-    PV : Real ;                   // 被监测量
-    zero : Real;                  // 零点值
-    span : Real := 100.0;         // 量程值
-    overflow_SP : Real := 0.02;   // 上溢出比例
-    underflow_SP : Real := -0.02; // 下溢出比例
-    AH_limit : Real ;             // 高高报设定值
-    WH_limit : Real ;             // 高报设定值
-    WL_limit : Real ;             // 低报设定值
-    AL_limit : Real ;             // 低低报设定值
-    dead_zone : Real := 0.5;      // 死区 （赋值0.0时无死区）
-    FT_time : Dint := 0;          // 容错时间 (单位毫秒 赋值0时无容错时间)
+    enable_HH : Bool := True;     // enable HH limit check
+    enable_H : Bool := True;      // enable H limit check
+    enable_L : Bool := True;      // enable L limit check
+    enable_LL : Bool := True;     // enable LL limit check
+    invalid : Bool := False;      // invalid data, no limit check when set
+    PV : Real ;                   // monitored value
+    zero : Real;                  // zero value
+    span : Real := 100.0;         // span value
+    overflow_SP : Real := 0.02;   // overflow ratio
+    underflow_SP : Real := -0.02; // underflow ratio
+    HH_limit : Real ;             // HH limit setpoint
+    H_limit : Real ;              // H limit setpoint
+    L_limit : Real ;              // L limit setpoint
+    LL_limit : Real ;             // LL limit setpoint
+    dead_zone : Real := 0.5;      // dead zone (0.0 means no dead zone)
+    FT_time : Dint := 0;          // fault tolerance time in ms (0 means none)
     ftTime AT FT_time : Time;
 END_VAR
 
-VAR_OUTPUT 
-    AH_flag : Bool;   // 高高报标志
-    WH_flag : Bool;   // 高报标志
-    WL_flag : Bool;   // 低报标志
-    AL_flag : Bool;   // 低低报标志
-    no_alarm : Bool ; // 无报警
-    input_ok : Bool;  // 输入正常，即invalid取反
-    overflow : Bool;  // 高溢出
-    underflow : Bool; // 低溢出
-    SP_error : Bool;  // 设置错误
-    AH_PV : Real ;    // AH报警时的最后过程值
-    WH_PV : Real ;    // WH报警时的最后过程值
-    WL_PV : Real ;    // WL报警时的最后过程值
-    AL_PV : Real ;    // AL报警时的最后过程值
+VAR_OUTPUT
+    HH_flag : Bool;   // HH limit exceeded flag
+    H_flag : Bool;    // H limit exceeded flag
+    L_flag : Bool;    // L limit exceeded flag
+    LL_flag : Bool;   // LL limit exceeded flag
+    no_limit : Bool ; // no limit check enabled
+    input_ok : Bool;  // input OK, i.e. NOT invalid
+    overflow : Bool;  // overflow
+    underflow : Bool; // underflow
+    SP_error : Bool;  // setpoint error
+    HH_PV : Real ;    // last PV when HH limit exceeded
+    H_PV : Real ;     // last PV when H limit exceeded
+    L_PV : Real ;     // last PV when L limit exceeded
+    LL_PV : Real ;    // last PV when LL limit exceeded
 END_VAR
 
 VAR
-    trigger_AH { ExternalVisible := 'False'} : Bool;       // 触发高高报
-    trigger_WH { ExternalVisible := 'False'} : Bool;       // 触发高报
-    trigger_WL { ExternalVisible := 'False'} : Bool;       // 触发低报
-    trigger_AL { ExternalVisible := 'False'} : Bool;       // 触发低低报
-    alarm_suppressed { ExternalVisible := 'False'} : Bool; // 报警抑制
-    AH_flag_set {
+    trigger_HH { ExternalVisible := 'False'} : Bool;       // HH limit triggered
+    trigger_H { ExternalVisible := 'False'} : Bool;        // H limit triggered
+    trigger_L { ExternalVisible := 'False'} : Bool;        // L limit triggered
+    trigger_LL { ExternalVisible := 'False'} : Bool;       // LL limit triggered
+    check_suppressed { ExternalVisible := 'False'} : Bool; // limit check suppressed
+    HH_flag_set {
         InstructionName := 'TON';
         LibVersion := '1.0';
         ExternalVisible := 'False'
     } : TON;
-    AH_flag_reset {
+    HH_flag_reset {
         InstructionName := 'TOF';
         LibVersion := '1.0';
         ExternalVisible := 'False'
     } : TOF;
-    WH_flag_set {
+    H_flag_set {
         InstructionName := 'TON';
         LibVersion := '1.0';
         ExternalVisible := 'False'
     } : TON;
-    WH_flag_reset {
+    H_flag_reset {
         InstructionName := 'TOF';
         LibVersion := '1.0';
         ExternalVisible := 'False'
     } : TOF;
-    WL_flag_set {
+    L_flag_set {
         InstructionName := 'TON';
         LibVersion := '1.0';
         ExternalVisible := 'False'
     } : TON;
-    WL_flag_reset {
+    L_flag_reset {
         InstructionName := 'TOF';
         LibVersion := '1.0';
         ExternalVisible := 'False'
     } : TOF;
-    AL_flag_set {
+    LL_flag_set {
         InstructionName := 'TON';
         LibVersion := '1.0';
         ExternalVisible := 'False'
     } : TON;
-    AL_flag_reset {
+    LL_flag_reset {
         InstructionName := 'TOF';
         LibVersion := '1.0';
         ExternalVisible := 'False'
     } : TOF;
 END_VAR
 
-VAR_TEMP 
-    tmp_AH : Real;
-    tmp_WH : Real;
-    tmp_WL : Real;
-    tmp_AL : Real;
+VAR_TEMP
+    tmp_HH : Real;
+    tmp_H : Real;
+    tmp_L : Real;
+    tmp_LL : Real;
     tmp_range : Real;
 END_VAR
 
@@ -104,185 +104,185 @@ BEGIN
 #tmp_range := #span - #zero;
 #overflow := #PV - #span > #tmp_range * #overflow_SP;
 #underflow := #PV - #zero < #tmp_range * #underflow_SP;
-#no_alarm := NOT (#enable_AH OR #enable_WH OR #enable_WL OR #enable_AL);
+#no_limit := NOT (#enable_HH OR #enable_H OR #enable_L OR #enable_LL);
 
-//补全限制值
-IF #enable_AH THEN
-    #tmp_AH := #AH_limit;
-ELSIF #enable_WH THEN
-    #tmp_AH := #WH_limit;
-ELSIF #enable_WL THEN
-    #tmp_AH := #WL_limit;
-ELSIF #enable_AL THEN
-    #tmp_AH := #AL_limit;
+// fill in disabled limits
+IF #enable_HH THEN
+    #tmp_HH := #HH_limit;
+ELSIF #enable_H THEN
+    #tmp_HH := #H_limit;
+ELSIF #enable_L THEN
+    #tmp_HH := #L_limit;
+ELSIF #enable_LL THEN
+    #tmp_HH := #LL_limit;
 END_IF;
 
-IF #enable_WH THEN
-    #tmp_WH := #WH_limit;
+IF #enable_H THEN
+    #tmp_H := #H_limit;
 ELSE
-    #tmp_WH := #tmp_AH;
+    #tmp_H := #tmp_HH;
 END_IF;
 
-IF #enable_WL THEN
-    #tmp_WL := #WL_limit;
+IF #enable_L THEN
+    #tmp_L := #L_limit;
 ELSE
-    #tmp_WL := #tmp_WH;
+    #tmp_L := #tmp_H;
 END_IF;
 
-IF #enable_AL THEN
-    #tmp_AL := #AL_limit;
+IF #enable_LL THEN
+    #tmp_LL := #LL_limit;
 ELSE
-    #tmp_AL := #tmp_WL;
+    #tmp_LL := #tmp_L;
 END_IF;
 
-//参数设置错误
-IF #no_alarm THEN
+// parameter setpoint error
+IF #no_limit THEN
     #SP_error := FALSE;
 ELSE
-    #SP_error := (#tmp_WH > #tmp_AH) OR (#tmp_WL > #tmp_WH) OR (#tmp_AL > #tmp_WL);
+    #SP_error := (#tmp_H > #tmp_HH) OR (#tmp_L > #tmp_H) OR (#tmp_LL > #tmp_L);
 END_IF;
 
-IF #no_alarm OR #SP_error OR #invalid THEN  //报警触发
-    #AH_flag := 
-    #WH_flag := 
-    #WL_flag := 
-    #AL_flag := FALSE;
-    #trigger_AH :=
-    #trigger_WH :=
-    #trigger_WL :=
-    #trigger_AL := FALSE;
-    IF #alarm_suppressed  THEN
+IF #no_limit OR #SP_error OR #invalid THEN  // limit check
+    #HH_flag :=
+    #H_flag :=
+    #L_flag :=
+    #LL_flag := FALSE;
+    #trigger_HH :=
+    #trigger_H :=
+    #trigger_L :=
+    #trigger_LL := FALSE;
+    IF #check_suppressed  THEN
         RETURN;
     END_IF;
-    #alarm_suppressed  := TRUE;
+    #check_suppressed  := TRUE;
 
-ELSE  //报警触发
-    #alarm_suppressed  := FALSE;
+ELSE  // limit check
+    #check_suppressed  := FALSE;
 
-    //上上限报警
-    IF #enable_AH AND (#PV > #AH_limit) THEN
-        #trigger_AH := True;
-        #trigger_WH := False;
-        #trigger_WL := False;
-        #trigger_AL := False;
-        // 记录最后的报警值
-        #AH_PV := #PV;
+    // HH limit exceeded
+    IF #enable_HH AND (#PV > #HH_limit) THEN
+        #trigger_HH := True;
+        #trigger_H := False;
+        #trigger_L := False;
+        #trigger_LL := False;
+        // record the last exceeded value
+        #HH_PV := #PV;
     END_IF;
-    //上上限报警恢复
-    IF NOT #enable_AH OR #PV < (#AH_limit - #dead_zone) THEN
-        #trigger_AH := False;
-    END_IF;
-
-    //上限报警
-    IF NOT #trigger_AH AND #enable_WH AND (#PV > #WH_limit) THEN
-        #trigger_WH := True;
-        #trigger_WL := False;
-        #trigger_AL := False;
-        // 记录最后的报警值
-        #WH_PV := #PV;
-    END_IF;
-    //上限报警恢复
-    IF NOT #enable_WH OR #PV < (#WH_limit - #dead_zone) THEN
-        #trigger_WH := False;
+    // HH limit recovered
+    IF NOT #enable_HH OR #PV < (#HH_limit - #dead_zone) THEN
+        #trigger_HH := False;
     END_IF;
 
-    //下下限报警
-    IF #enable_AL AND (#PV < #AL_limit) THEN
-        #trigger_AH := False;
-        #trigger_WH := False;
-        #trigger_WL := False;
-        #trigger_AL := True;
-        // 记录最后的报警值
-        #AL_PV := #PV;
+    // H limit exceeded
+    IF NOT #trigger_HH AND #enable_H AND (#PV > #H_limit) THEN
+        #trigger_H := True;
+        #trigger_L := False;
+        #trigger_LL := False;
+        // record the last exceeded value
+        #H_PV := #PV;
     END_IF;
-    //下下限报警恢复
-    IF NOT #enable_AL OR #PV > (#AL_limit + #dead_zone) THEN
-        #trigger_AL := False;
+    // H limit recovered
+    IF NOT #enable_H OR #PV < (#H_limit - #dead_zone) THEN
+        #trigger_H := False;
     END_IF;
 
-    //下限报警
-    IF NOT #trigger_AL AND #enable_WL AND (#PV < #WL_limit) THEN
-        #trigger_AH := False;
-        #trigger_WH := False;
-        #trigger_WL := True;
-        // 记录最后的报警值
-        #WL_PV := #PV;
+    // LL limit exceeded
+    IF #enable_LL AND (#PV < #LL_limit) THEN
+        #trigger_HH := False;
+        #trigger_H := False;
+        #trigger_L := False;
+        #trigger_LL := True;
+        // record the last exceeded value
+        #LL_PV := #PV;
     END_IF;
-    //下限报警恢复
-    IF NOT #enable_WL OR #PV > (#WL_limit + #dead_zone) THEN
-        #trigger_WL := False;
+    // LL limit recovered
+    IF NOT #enable_LL OR #PV > (#LL_limit + #dead_zone) THEN
+        #trigger_LL := False;
+    END_IF;
+
+    // L limit exceeded
+    IF NOT #trigger_LL AND #enable_L AND (#PV < #L_limit) THEN
+        #trigger_HH := False;
+        #trigger_H := False;
+        #trigger_L := True;
+        // record the last exceeded value
+        #L_PV := #PV;
+    END_IF;
+    // L limit recovered
+    IF NOT #enable_L OR #PV > (#L_limit + #dead_zone) THEN
+        #trigger_L := False;
     END_IF;
 END_IF;
 
-// 容错时限后输出报警标志
+// output limit flags after fault tolerance time
 IF #FT_time = 0 THEN
-    #AH_flag := #trigger_AH;
-    #WH_flag := #trigger_WH;
-    #WL_flag := #trigger_WL;
-    #AL_flag := #trigger_AL;
+    #HH_flag := #trigger_HH;
+    #H_flag := #trigger_H;
+    #L_flag := #trigger_L;
+    #LL_flag := #trigger_LL;
 ELSE
-    // 延时置位高高报
-    #AH_flag_set(
-        IN := #trigger_AH,
+    // delayed set of HH flag
+    #HH_flag_set(
+        IN := #trigger_HH,
         PT := #ftTime);
-    IF #AH_flag_set.Q THEN
-        #AH_flag := True;
+    IF #HH_flag_set.Q THEN
+        #HH_flag := True;
     END_IF;
 
-    // 延时复位高高报
-    #AH_flag_reset(
-        IN := #trigger_AH,
+    // delayed reset of HH flag
+    #HH_flag_reset(
+        IN := #trigger_HH,
         PT := #ftTime);
-    IF NOT #AH_flag_reset.Q THEN
-        #AH_flag := False;
+    IF NOT #HH_flag_reset.Q THEN
+        #HH_flag := False;
     END_IF;
 
-    // 延时置位高报
-    #WH_flag_set(
-        IN := #trigger_WH,
+    // delayed set of H flag
+    #H_flag_set(
+        IN := #trigger_H,
         PT := #ftTime);
-    IF #WH_flag_set.Q THEN
-        #WH_flag := True;
+    IF #H_flag_set.Q THEN
+        #H_flag := True;
     END_IF;
 
-    // 延时复位高报
-    #WH_flag_reset(
-        IN := #trigger_WH,
+    // delayed reset of H flag
+    #H_flag_reset(
+        IN := #trigger_H,
         PT := #ftTime);
-    IF NOT #WH_flag_reset.Q THEN
-        #WH_flag := False;
+    IF NOT #H_flag_reset.Q THEN
+        #H_flag := False;
     END_IF;
 
-    // 延时置位低报
-    #WL_flag_set(
-        IN := #trigger_WL,
+    // delayed set of L flag
+    #L_flag_set(
+        IN := #trigger_L,
         PT := #ftTime);
-    IF #WL_flag_set.Q THEN
-        #WL_flag := True;
+    IF #L_flag_set.Q THEN
+        #L_flag := True;
     END_IF;
 
-    // 延时复位低报
-    #WL_flag_reset(
-        IN := #trigger_WL,
+    // delayed reset of L flag
+    #L_flag_reset(
+        IN := #trigger_L,
         PT := #ftTime);
-    IF NOT #WL_flag_reset.Q THEN
-        #WL_flag := False;
+    IF NOT #L_flag_reset.Q THEN
+        #L_flag := False;
     END_IF;
 
-    // 延时置位低低报
-    #AL_flag_set(
-        IN := #trigger_AL,
+    // delayed set of LL flag
+    #LL_flag_set(
+        IN := #trigger_LL,
         PT := #ftTime);
-    IF #AL_flag_set.Q THEN
-        #AL_flag := True;
+    IF #LL_flag_set.Q THEN
+        #LL_flag := True;
     END_IF;
 
-    // 延时复位低低报
-    #AL_flag_reset(
-        IN := #trigger_AL,
+    // delayed reset of LL flag
+    #LL_flag_reset(
+        IN := #trigger_LL,
         PT := #ftTime);
-    IF NOT #AL_flag_reset.Q THEN
-        #AL_flag := False;
+    IF NOT #LL_flag_reset.Q THEN
+        #LL_flag := False;
     END_IF;
 END_IF;
 
