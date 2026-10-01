@@ -1,8 +1,8 @@
 //**************************************************************************************
 // Copyright Goosy. All Rights Reserved. Confidential
-// Derived from Step7 Alarm_Proc
+// Derived from Step7 Limit_Proc
 //**************************************************************************************
-FUNCTION_BLOCK "Alarm_Proc"
+FUNCTION_BLOCK "Limit_Proc"
 TITLE='Analog limit check'
 {
     S7_m_c := 'true'
@@ -10,7 +10,7 @@ TITLE='Analog limit check'
 VERSION:'1.0'
 KNOW_HOW_PROTECT
 AUTHOR:Goosy
-NAME:AlarmPrc
+NAME:LimitPrc
 FAMILY:GooLib
 
 VAR_INPUT
